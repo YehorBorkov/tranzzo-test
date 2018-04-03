@@ -79,7 +79,7 @@ class TreeSpec extends FlatSpec with Matchers with IntStuff with FunStuff {
     // Sorted ascending and tested as sum <= w where w = 3. There are no b4 leaf in sorted a1 because it was sorted out, as 3 + 4 is not <= 3. Only 3 is.
     //                                                                a3              a2              a1(b3)         b1       b2
     testNode.sort(3, ascending, lessEqualsThan, add) shouldEqual Node(Node[Int](Nil), Node[Int](Nil), Node(Leaf(3)), Leaf(1), Leaf(2))
-    // Similar case, but now w = 3. Notice than b1, b2, b3 present in parent node as 1 + 2 + 3 <= 6 and b4 is present in first child node as 4 <= 6 too.
+    // Similar case, but now w = 6. Notice than b1, b2, b3 present in parent node as 1 + 2 + 3 <= 6 and b4 is present in first child node as 4 <= 6 too.
     //                                                                a3              a2              a1(b4)         b1       b2       b3
     testNode.sort(6, ascending, lessEqualsThan, add) shouldEqual Node(Node[Int](Nil), Node[Int](Nil), Node(Leaf(4)), Leaf(1), Leaf(2), Leaf(3))
   }
