@@ -23,6 +23,43 @@ case class Leaf[A](value: A) extends Tree[A]
   */
 case class Node[A](children: List[Tree[A]]) extends Tree[A] {
   /**
+    * Sorts the whole tree recursively by given rules:
+    * Leafs are sorted according to given '''sort''' function.
+    * Than leafs are combined (aka foldLeft) using '''combine''' function.
+    * Combination goes on until '''compare''' against '''w''' is true.
+    * Remaining leafs are considered leftovers and moved to the firs-in-list child node.
+    * Leftovers on the bottom nodes are discarded.
+    * Sorting goes on recursively from top to bottom.
+    * @param w       Nominal value combination is tested against
+    * @param sort    Sorter function, how to sort leafs
+    * @param compare Comparator function, how to compare A to w (w comes last e.g. it's sum < w, not w < sum)
+    * @param combine Combiner function, how to combine A's (sum comes first e.g. it's sum - a, not a - sum)
+    * @param init    Initial (zeroed) value of A
+    * @return        Recursively sorted tree from top to bottom
+    */
+  def sort(w: A, sort: (A, A) => Boolean, compare: (A, A) => Boolean, combine: (A, A) => A)(implicit init: A): Node[A] = {
+    def mainLoop(root: Node[A], bonus: List[Leaf[A]]): Node[A] = {
+      val (nodes, carry, newBonus) = root._disassemble(w, sort, compare, combine, bonus)
+
+      def childLoop(nodes: List[Node[A]], fromParent: List[Leaf[A]], acc: List[Node[A]]): List[Node[A]] = {
+        nodes match {
+          case s :: xs =>
+            fromParent match {
+              case Nil  => childLoop(xs, Nil, mainLoop(s, Nil) :: acc)
+              case data => childLoop(xs, Nil, mainLoop(s, data) :: acc)
+            }
+          case Nil =>
+            acc
+        }
+      }
+
+      new Node[A](childLoop(nodes, newBonus, Nil) ++ carry)
+    }
+
+    mainLoop(this, Nil)
+  }
+
+  /**
     * Normalizes the node and filters combination of leafs against given w using how
     * @param w       Nominal value combination is tested against
     * @param sort    Sorter function, how to sort leafs
@@ -107,6 +144,13 @@ case class Node[A](children: List[Tree[A]]) extends Tree[A] {
     }
 
     loop(init, list, Nil, Nil)
+  }
+
+  private def _disassemble(w: A, sort: (A, A) => Boolean, compare: (A, A) => Boolean, combine: (A, A) => A, bonus: List[Leaf[A]])(implicit init: A): (List[Node[A]], List[Leaf[A]], List[Leaf[A]]) = {
+    val (nodes, leafs) = _splitSort(sort)
+    val (carry, leftovers) = _filterOut(leafs ++ bonus, w, sort, compare, combine)
+
+    (nodes, carry, leftovers)
   }
 }
 object Node {
