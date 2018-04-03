@@ -23,6 +23,22 @@ case class Leaf[A](value: A) extends Tree[A]
   */
 case class Node[A](children: List[Tree[A]]) extends Tree[A] {
   /**
+    * Normalizes the node and filters combination of leafs against given w using how
+    * @param w       Nominal value combination is tested against
+    * @param sort    Sorter function, how to sort leafs
+    * @param compare Comparator function, how to compare A to w (w comes last e.g. it's sum < w, not w < sum)
+    * @param combine Combiner function, how to combine A's (sum comes first e.g. it's sum - a, not a - sum)
+    * @param init    Initial (zeroed) value of A
+    * @return        Normalized node with leftovers in tuple
+    */
+  def separate(w: A, sort: (A, A) => Boolean, compare: (A, A) => Boolean, combine: (A, A) => A)(implicit init: A): (Node[A], List[Leaf[A]]) = {
+    val (nodes, leafs) = _splitSort(sort)
+    val (carry, leftovers) = _filterOut(leafs, w, sort, compare, combine)
+
+    (this.copy(nodes ++ carry), leftovers)
+  }
+
+  /**
     * Splits children to nodes and leafs and sorts leafs of given node using provided comparator function
     * @param sort Comparator function for comparing arguments of type A
     * @return     New node with nodes and leafs separated, leafs sorted
@@ -74,6 +90,23 @@ case class Node[A](children: List[Tree[A]]) extends Tree[A] {
   private def _splitSort(how: (A, A) => Boolean): (List[Node[A]], List[Leaf[A]]) = {
     val (nodes, leafs) = _split
     (nodes, _sort(leafs, how))
+  }
+
+  private def _filterOut(list: List[Leaf[A]], w: A, sort: (A, A) => Boolean, compare: (A, A) => Boolean, combine: (A, A) => A)(implicit init: A): (List[Leaf[A]], List[Leaf[A]]) = {
+    def loop(sum: A, list: List[Leaf[A]], valid: List[Leaf[A]], invalid: List[Leaf[A]]): (List[Leaf[A]], List[Leaf[A]]) = {
+      list match {
+        case s :: xs =>
+          val cmb = combine(sum, s.value)
+          if (compare(cmb, w))
+            loop(cmb, xs, valid :+ s, invalid)
+          else
+            loop(cmb, xs, valid, invalid :+ s)
+        case Nil =>
+          (valid, invalid)
+      }
+    }
+
+    loop(init, list, Nil, Nil)
   }
 }
 object Node {

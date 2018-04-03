@@ -5,8 +5,8 @@ import org.scalatest.{FlatSpec, Matchers}
 trait IntStuff {
   implicit val zero: Int = 0
 
-  val lessThan: (Int, Int) => Boolean = (a, b) => a < b
-  val moreThan: (Int, Int) => Boolean = (a, b) => a > b
+  val ascending: (Int, Int) => Boolean = (a, b) => a < b
+  val descending: (Int, Int) => Boolean = (a, b) => a > b
 
   val lessEqualsThan: (Int, Int) => Boolean = (a, b) => a <= b
   val moreEqualsThan: (Int, Int) => Boolean = (a, b) => a >= b
@@ -30,23 +30,46 @@ class TreeSpec extends FlatSpec with Matchers with IntStuff with FunStuff {
 
   "Node" should "rearrange children so nodes first, leafs last and sort leafs" in {
     val testNode = Node(Leaf(5), Leaf(3), Node(Leaf(4), Leaf(1)), Leaf(6), Node[Int](Nil))
-    testNode.normalize(lessThan) shouldEqual Node(Node[Int](Nil), Node(Leaf(4), Leaf(1)), Leaf(3), Leaf(5), Leaf(6))
-    testNode.normalize(moreThan) shouldEqual Node(Node[Int](Nil), Node(Leaf(4), Leaf(1)), Leaf(6), Leaf(5), Leaf(3))
+    testNode.normalize(ascending) shouldEqual Node(Node[Int](Nil), Node(Leaf(4), Leaf(1)), Leaf(3), Leaf(5), Leaf(6))
+    testNode.normalize(descending) shouldEqual Node(Node[Int](Nil), Node(Leaf(4), Leaf(1)), Leaf(6), Leaf(5), Leaf(3))
   }
 
-  "Empty node" should "not change" in {
+  "Empty node" should "not change after sorting" in {
     val testNode = Node(Nil)
-    testNode.normalize(alwaysTrue) shouldEqual Node(Nil)
+    testNode.normalize(alwaysTrue) shouldEqual testNode
   }
 
   "Node with leafs only" should "sort leafs" in {
     val testNode = Node(Leaf(2), Leaf(1), Leaf(3))
-    testNode.normalize(lessThan) shouldEqual Node(Leaf(1), Leaf(2), Leaf(3))
-    testNode.normalize(moreThan) shouldEqual Node(Leaf(3), Leaf(2), Leaf(1))
+    testNode.normalize(ascending) shouldEqual Node(Leaf(1), Leaf(2), Leaf(3))
+    testNode.normalize(descending) shouldEqual Node(Leaf(3), Leaf(2), Leaf(1))
   }
 
-  "Nde with nodes only" should "not change" in {
+  "Node with nodes only" should "not change after sorting" in {
     val testNode = Node(Node(Nil), Node(Nil), Node(Nil))
-    testNode.normalize(alwaysTrue) shouldEqual Node(Node(Nil), Node(Nil), Node(Nil))
+    testNode.normalize(alwaysTrue) shouldEqual testNode
+  }
+
+  "Node" should "properly sort children and separate leftovers" in {
+    val testNode = Node(Leaf(2), Node[Int](Nil), Node(Leaf(1), Leaf(5)), Leaf(1), Leaf(6), Leaf(3), Node[Int](Nil))
+    testNode.separate(6, ascending, lessEqualsThan, add) shouldEqual (Node(Node[Int](Nil), Node(Leaf(1), Leaf(5)), Node[Int](Nil), Leaf(1), Leaf(2), Leaf(3)), List(Leaf(6)))
+    Node(Leaf(1)).separate(6, ascending, lessEqualsThan, add) shouldEqual (Node(Leaf(1)), Nil)
+    Node(Leaf(1)).separate(6, ascending, moreEqualsThan, add) shouldEqual (Node(Nil), List(Leaf(1)))
+  }
+
+  "Empty node" should "not change after separation" in {
+    val testNode = Node[Int](Nil)
+    testNode.separate(0, ascending, lessEqualsThan, add) shouldEqual (testNode, Nil)
+  }
+
+  "Node with leafs only" should "properly sort leafs and separate leftovers" in {
+    val testNode = Node(Leaf(2), Leaf(1), Leaf(3), Leaf(5), Leaf(4))
+    testNode.separate(6, ascending, lessEqualsThan, add) shouldEqual (Node(Leaf(1), Leaf(2), Leaf(3)), List(Leaf(4), Leaf(5)))
+    testNode.separate(9, descending, lessEqualsThan, add) shouldEqual (Node(Leaf(5), Leaf(4)), List(Leaf(3), Leaf(2), Leaf(1)))
+  }
+
+  "Node with nodes only" should "not change after separation" in {
+    val testNode = Node(Node[Int](Nil), Node[Int](Nil), Node[Int](Nil))
+    testNode.separate(0, ascending, lessEqualsThan, add) shouldEqual (testNode, Nil)
   }
 }
